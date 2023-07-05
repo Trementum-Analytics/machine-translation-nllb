@@ -6,7 +6,7 @@ class LanguageDetection():
     
     def detect(self, text):
         
-        # replace new lines
+        # replace new lines - also need to be done some more preprocessing
         text = text.replace('\n', ' ')
         
         # find source language for this text

@@ -1,12 +1,15 @@
 from langdetect import LanguageDetection
 from db_connection import DbConnection
+from psycopg2 import extras
 
 # need to add model from fb - wget https://dl.fbaipublicfiles.com/nllb/lid/lid218e.bin
 # also available in spaces
 pretrained_lang_model = "../content/lid218e.bin"
 
+# initialize language detection with pretrained model
 LangRecognize = LanguageDetection(pretrained_lang_model=pretrained_lang_model)
 
+# initialize connection to database
 Connection = DbConnection()
 Connection.connect()
 
@@ -21,15 +24,29 @@ cur.execute(query)
 
 rows = cur.fetchmany(1000)
 
-# while rows:
-ids = []
-texts = []
+i = 0
+while rows:
+    cur_update = Connection.conn.cursor()
+    data = []
+    
+    for row in rows:
+        data.append({'id': int(row[0]), 'text': row[1], 'lang': LangRecognize.detect(row[1])})
+    
+    update_statement = '''
+        UPDATE test_all_platforms.posts
+        SET lang_detect = %(lang)s
+        WHERE _id = %(id)s'''
+    
+    extras.execute_batch(cur_update, update_statement, data)
 
-for row in rows:
-    ids.append(row[0])
-    texts.append(row[1])
-        
-src_lang = LangRecognize.detect(texts[0])
-
-print(texts[0])
-print(src_lang)
+    
+    i += 1
+    print(f'Done {i*1000} posts')
+    
+    rows = cur.fetchmany(1000)
+    
+Connection.conn.commit()
+    
+# close connection after everything is done
+cur.close()
+Connection.conn.close()
