@@ -1,0 +1,5 @@
+fasttext
+transformers
+torch
+torchvision
+torchaudio
