@@ -22,18 +22,18 @@ query = '''
     SELECT _id, text_original
     FROM test_all_platforms.posts
     WHERE text_original IS NOT NULL
+        AND lang_detect IS NOT NULL
 '''
 print(query)
 
 # create cursor for getting data from the database
 cur = Connection.conn.cursor()
 cur.execute(query)
-print('Connection done')
 
 # load first batch of rows - if nothing, it just goes to the end of script
 rows = cur.fetchmany(1000)
 
-i = 0 # just to check, to be deleted after
+i = 0 # just to check, to be deleted after all tests or transformed to another output
 while rows:
     data = []
     
