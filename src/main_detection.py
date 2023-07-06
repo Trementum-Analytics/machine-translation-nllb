@@ -8,9 +8,14 @@ pretrained_lang_model = "content/lid218e.bin"
 # initialize language detection with pretrained model
 LangRecognize = LanguageDetection(pretrained_lang_model=pretrained_lang_model)
 
-# initialize connection to database
-Connection = DbConnection()
-Connection.connect()
+try:
+    # initialize connection to database
+    Connection = DbConnection()
+    Connection.connect()
+    
+    print('Connection successful')
+except Exception as error:
+    print('Connection error: ', error)
 
 # test row from db
 query = '''
@@ -18,6 +23,7 @@ query = '''
     FROM test_all_platforms.posts
     WHERE text_original IS NOT NULL
 '''
+print(query)
 
 # create cursor for getting data from the database
 cur = Connection.conn.cursor()
