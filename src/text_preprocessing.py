@@ -4,6 +4,11 @@ from cleantext import clean
 # regex for detection of urls in text
 full_regex = r'((?<=[^a-zA-Z0-9])(?:https?\:\/\/|[a-zA-Z0-9]{1,}\.{1}|\b)(?:\w{1,}\.{1}){1,5}(?:com|org|edu|gov|uk|net|ca|de|jp|fr|au|us|ru|ch|it|nl|se|no|es|mil|iq|io|ac|ly|sm){1}(?:\/[a-zA-Z0-9]{1,})*)'
 
+# check for letters in string
+def has_alphabetical_letters(text):
+    pattern = r'[^\W\d_]'  # Matches any letter in any language
+    return bool(re.search(pattern, text))
+
 # full clean text function
 def clean_text(document):
 
@@ -32,4 +37,9 @@ def clean_text(document):
 
     # remove extra spaces
     final_document = final_document.strip()
-    return final_document
+    
+    if has_alphabetical_letters(final_document):
+        return final_document
+    else:
+        return None
+

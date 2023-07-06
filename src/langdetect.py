@@ -11,8 +11,11 @@ class LanguageDetection():
         text = text.replace('\n', ' ')
         text = clean_text(text)
         
-        # find source language for this text
-        predictions = self.detection_model.predict(text, k=1)
-        lang = predictions[0][0].replace('__label__', '')
-        
-        return lang
+        if text == '' or text is None:
+            return 'und'
+        else:
+            # find source language for this text
+            predictions = self.detection_model.predict(text, k=1)
+            lang = predictions[0][0].replace('__label__', '')
+            
+            return lang
