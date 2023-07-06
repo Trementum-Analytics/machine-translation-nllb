@@ -22,12 +22,12 @@ query = '''
 # create cursor for getting data from the database
 cur = Connection.conn.cursor()
 cur.execute(query)
+print('Connection done')
 
 # load first batch of rows - if nothing, it just goes to the end of script
 rows = cur.fetchmany(1000)
 
-# TODO: add text preprocessing before language detection - clearn emoji, links, strip
-i = 0
+i = 0 # just to check, to be deleted after
 while rows:
     data = []
     

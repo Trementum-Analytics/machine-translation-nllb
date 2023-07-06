@@ -1,8 +1,4 @@
 fasttext
-transformers
-torch
-torchvision
-torchaudio
 psycopg2-binary
 python-dotenv
 clean-text
