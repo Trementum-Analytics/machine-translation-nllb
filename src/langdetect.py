@@ -1,4 +1,5 @@
 import fasttext
+from text_preprocessing import clean_text
 
 class LanguageDetection():
     def __init__(self, pretrained_lang_model) -> None:
@@ -8,6 +9,7 @@ class LanguageDetection():
         
         # replace new lines - also need to be done some more preprocessing
         text = text.replace('\n', ' ')
+        text = clean_text(text)
         
         # find source language for this text
         predictions = self.detection_model.predict(text, k=1)

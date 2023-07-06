@@ -1,6 +1,5 @@
 from langdetect import LanguageDetection
 from db_connection import DbConnection
-from psycopg2 import extras
 
 # need to add model from fb - wget https://dl.fbaipublicfiles.com/nllb/lid/lid218e.bin
 # also available in spaces
@@ -19,14 +18,17 @@ query = '''
     FROM test_all_platforms.posts
     WHERE text_original IS NOT NULL
 '''
+
+# create cursor for getting data from the database
 cur = Connection.conn.cursor()
 cur.execute(query)
 
+# load first batch of rows - if nothing, it just goes to the end of script
 rows = cur.fetchmany(1000)
 
+# TODO: add text preprocessing before language detection - clearn emoji, links, strip
 i = 0
 while rows:
-    cur_update = Connection.conn.cursor()
     data = []
     
     for row in rows:
@@ -37,16 +39,16 @@ while rows:
         SET lang_detect = %(lang)s
         WHERE _id = %(id)s'''
     
-    extras.execute_batch(cur_update, update_statement, data)
+    Connection.updated_in_batches(update_statement, data)
 
-    
     i += 1
     print(f'Done {i*1000} posts')
     
+    # load next batch of rows
     rows = cur.fetchmany(1000)
     
-Connection.conn.commit()
+Connection.commit()
     
 # close connection after everything is done
 cur.close()
-Connection.conn.close()
+Connection.close_connection()
