@@ -1,5 +1,5 @@
 import fasttext
-from text_preprocessing import clean_text
+from language_detection.src.text_preprocessing import clean_text
 
 class LanguageDetection():
     def __init__(self, pretrained_lang_model) -> None:

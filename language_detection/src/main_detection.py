@@ -1,4 +1,4 @@
-from langdetect import LanguageDetection
+from language_detection.src.langdetect import LanguageDetection
 from db_connection import DbConnection
 
 # need to add model from fb - wget https://dl.fbaipublicfiles.com/nllb/lid/lid218e.bin
