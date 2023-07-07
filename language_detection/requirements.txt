@@ -1,0 +1,4 @@
+fasttext
+psycopg2-binary
+python-dotenv
+clean-text
