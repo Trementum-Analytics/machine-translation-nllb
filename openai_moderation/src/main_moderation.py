@@ -37,32 +37,38 @@ rows = cur.fetchmany(BATCH_SIZE)
 i = 0
 while rows:
     data = []
+    input_texts = []
+    ids = []
+    
+    # prepare list of texts for openai moderation
     for row in rows:
-        text = row[1]
-        
-        response = openai.Moderation.create(
-            input=text
-        )
+        ids.append(row[0])
+        input_texts.append(row[1])
+    
+    #make a query    
+    response = openai.Moderation.create(
+        input=input_texts
+    )
 
-        output = response["results"][0]
+    for i, output in enumerate(response['results']):
         categories = json.loads(str(output['categories']))
         category_scores = json.loads(str(output['category_scores']))
-        
+    
         # created list of dictionaries - for each row in database with columns for each score parameter
-        data.append({'id': int(row[0]),
-                     'flagged': output['flagged'],
-                     'categories': json.dumps(categories),
-                     'sexual': category_scores['sexual'],
-                     'hate': category_scores['hate'],
-                     'harassment': category_scores['harassment'],
-                     'selfharm': category_scores['self-harm'],
-                     'sexual_minors': category_scores['sexual/minors'],
-                     'hate_threatening': category_scores['hate/threatening'],
-                     'violence_graphic': category_scores['violence/graphic'],
-                     'selfharm_intent': category_scores['self-harm/intent'],
-                     'selfharm_instructions': category_scores['self-harm/instructions'],
-                     'harassment_threatening': category_scores['harassment/threatening'],
-                     'violence': category_scores['violence']})
+        data.append({'id': int(row[ids[i]]),
+                        'flagged': output['flagged'],
+                        'categories': json.dumps(categories),
+                        'sexual': category_scores['sexual'],
+                        'hate': category_scores['hate'],
+                        'harassment': category_scores['harassment'],
+                        'selfharm': category_scores['self-harm'],
+                        'sexual_minors': category_scores['sexual/minors'],
+                        'hate_threatening': category_scores['hate/threatening'],
+                        'violence_graphic': category_scores['violence/graphic'],
+                        'selfharm_intent': category_scores['self-harm/intent'],
+                        'selfharm_instructions': category_scores['self-harm/instructions'],
+                        'harassment_threatening': category_scores['harassment/threatening'],
+                        'violence': category_scores['violence']})
     
     update_statement = '''
     UPDATE test_all_platforms.posts
