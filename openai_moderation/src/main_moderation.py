@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import json
 from db_connection import DbConnection
 
-BATCH_SIZE = 1
+BATCH_SIZE = 1000
 
 # init openai api
 load_dotenv()
@@ -25,7 +25,6 @@ query = '''
     SELECT _id, text_original
     FROM test_all_platforms.posts
     WHERE text_original IS NOT NULL
-    LIMIT 5
 '''
 
 # create cursor for getting data from the database
@@ -48,15 +47,38 @@ while rows:
         output = response["results"][0]
         categories = json.loads(str(output['categories']))
         category_scores = json.loads(str(output['category_scores']))
+        
+        # created list of dictionaries - for each row in database with columns for each score parameter
         data.append({'id': int(row[0]),
                      'flagged': output['flagged'],
                      'categories': json.dumps(categories),
-                     'category_scores': json.dumps(category_scores)})
+                     'sexual': category_scores['sexual'],
+                     'hate': category_scores['hate'],
+                     'harassment': category_scores['harassment'],
+                     'selfharm': category_scores['self-harm'],
+                     'sexual_minors': category_scores['sexual/minors'],
+                     'hate_threatening': category_scores['hate/threatening'],
+                     'violence_graphic': category_scores['violence/graphic'],
+                     'selfharm_intent': category_scores['self-harm/intent'],
+                     'selfharm_instructions': category_scores['self-harm/instructions'],
+                     'harassment_threatening': category_scores['harassment/threatening'],
+                     'violence': category_scores['violence']})
     
     update_statement = '''
     UPDATE test_all_platforms.posts
     SET flagged = %(flagged)s,
-        categories = %(categories)s
+        categories = %(categories)s,
+        sexual = %(sexual)s,
+        hate = %(hate)s,
+        harassment = %(harassment)s,
+        selfharm = %(selfharm)s,
+        sexual_minors = %(sexual_minors)s,
+        hate_threatening = %(hate_threatening)s,
+        violence_graphic = %(violence_graphic)s,
+        selfharm_intent = %(selfharm_intent)s,
+        selfharm_instructions = %(selfharm_instructions)s,
+        harassment_threatening = %(harassment_threatening)s,
+        violence = %(violence)s
     WHERE _id = %(id)s'''
 
     Connection.updated_in_batches(update_statement, data)
