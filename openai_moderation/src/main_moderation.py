@@ -1,10 +1,11 @@
 import openai
 import os
+import more_itertools
 from dotenv import load_dotenv
 import json
 from db_connection import DbConnection
 
-BATCH_SIZE = 1000
+BATCH_SIZE = 1024
 
 # init openai api
 load_dotenv()
@@ -34,7 +35,7 @@ cur.execute(query)
 # load first batch of rows - if nothing, it just goes to the end of script
 rows = cur.fetchmany(BATCH_SIZE)
 
-i = 0
+iterations = 0
 while rows:
     data = []
     input_texts = []
@@ -45,17 +46,23 @@ while rows:
         ids.append(row[0])
         input_texts.append(row[1])
     
-    #make a query    
-    response = openai.Moderation.create(
-        input=input_texts
-    )
+    # create structure for results from moderation
+    moderation_outputs = []
+    
+    for chunk in more_itertools.chunked(input_texts, 32):
+        response = openai.Moderation.create(
+            input=chunk
+        )
+        
+        for result in response['results']:
+            moderation_outputs.append(result)
 
-    for i, output in enumerate(response['results']):
+    for i, output in enumerate(moderation_outputs):
         categories = json.loads(str(output['categories']))
         category_scores = json.loads(str(output['category_scores']))
     
         # created list of dictionaries - for each row in database with columns for each score parameter
-        data.append({'id': int(row[ids[i]]),
+        data.append({'id': int(ids[i]),
                         'flagged': output['flagged'],
                         'categories': json.dumps(categories),
                         'sexual': category_scores['sexual'],
@@ -89,8 +96,8 @@ while rows:
 
     Connection.updated_in_batches(update_statement, data)
 
-    i += 1
-    print(f'Done {i*BATCH_SIZE} posts')
+    iterations += 1
+    print(f'Done {iterations*BATCH_SIZE} posts')
 
     # load next batch of rows
     rows = cur.fetchmany(BATCH_SIZE)
