@@ -1,4 +1,5 @@
 transformers
+datasets
 psycopg2-binary
 python-dotenv
 clean-text

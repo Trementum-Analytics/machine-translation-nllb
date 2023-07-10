@@ -1,9 +1,0 @@
-fasttext
-transformers
-psycopg2-binary
-python-dotenv
-clean-text
-torch
-torchvision
-torchaudio
-openai
