@@ -6,7 +6,7 @@ from torch import cuda
 from db_connection import DbConnection
 import re
 
-BATCH_SIZE = 1000
+BATCH_SIZE = 1024
 
 # start database connection
 try:

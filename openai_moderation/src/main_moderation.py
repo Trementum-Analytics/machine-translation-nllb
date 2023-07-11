@@ -5,10 +5,11 @@ from dotenv import load_dotenv
 import json
 from db_connection import DbConnection
 
-BATCH_SIZE = 1024
-
-# init openai api
+# load environment variables
 load_dotenv()
+DB_SCHEMA = os.getenv('DB_SCHEMA')
+DB_TABLE = os.getenv('DB_TABLE')
+BATCH_SIZE = 1024
 
 openai.api_key = os.getenv('OPENAI_MODERATION')
 
@@ -21,10 +22,11 @@ try:
     print('Connection successful')
 except Exception as error:
     print('Connection error: ', error)
+    exit(1)
     
-query = '''
+query = f'''
     SELECT _id, text_original
-    FROM test_all_platforms.posts
+    FROM {DB_SCHEMA}.{DB_TABLE}
     WHERE text_original IS NOT NULL
 '''
 
@@ -35,8 +37,12 @@ cur.execute(query)
 # load first batch of rows - if nothing, it just goes to the end of script
 rows = cur.fetchmany(BATCH_SIZE)
 
+# count interations to print progress
 iterations = 0
+
+# main loop - takes rows from query by batch size and performs operations until all rows are proceeded
 while rows:
+    # some data structures (data - prepared for upload, input texts - for model input, ids - posts ids for identification)
     data = []
     input_texts = []
     ids = []
@@ -49,14 +55,17 @@ while rows:
     # create structure for results from moderation
     moderation_outputs = []
     
+    # maximum input of array for model is 32, so split list with texts into equal chunks
     for chunk in more_itertools.chunked(input_texts, 32):
         response = openai.Moderation.create(
             input=chunk
         )
         
+        # from results add to list with outputs
         for result in response['results']:
             moderation_outputs.append(result)
 
+    # prepare data for uploading
     for i, output in enumerate(moderation_outputs):
         categories = json.loads(str(output['categories']))
         category_scores = json.loads(str(output['category_scores']))
@@ -77,32 +86,35 @@ while rows:
                         'harassment_threatening': category_scores['harassment/threatening'],
                         'violence': category_scores['violence']})
     
-    update_statement = '''
-    UPDATE test_all_platforms.posts
-    SET flagged = %(flagged)s,
-        categories = %(categories)s,
-        sexual = %(sexual)s,
-        hate = %(hate)s,
-        harassment = %(harassment)s,
-        selfharm = %(selfharm)s,
-        sexual_minors = %(sexual_minors)s,
-        hate_threatening = %(hate_threatening)s,
-        violence_graphic = %(violence_graphic)s,
-        selfharm_intent = %(selfharm_intent)s,
-        selfharm_instructions = %(selfharm_instructions)s,
-        harassment_threatening = %(harassment_threatening)s,
-        violence = %(violence)s
-    WHERE _id = %(id)s'''
+    # upload to database
+    update_statement = f'UPDATE {DB_SCHEMA}.{DB_TABLE}' + '''
+        SET flagged = %(flagged)s,
+            categories = %(categories)s,
+            sexual = %(sexual)s,
+            hate = %(hate)s,
+            harassment = %(harassment)s,
+            selfharm = %(selfharm)s,
+            sexual_minors = %(sexual_minors)s,
+            hate_threatening = %(hate_threatening)s,
+            violence_graphic = %(violence_graphic)s,
+            selfharm_intent = %(selfharm_intent)s,
+            selfharm_instructions = %(selfharm_instructions)s,
+            harassment_threatening = %(harassment_threatening)s,
+            violence = %(violence)s
+        WHERE _id = %(id)s'''
 
+    # fast upload using batches
     Connection.updated_in_batches(update_statement, data)
 
-    iterations += 1
-    print(f'Done {iterations*BATCH_SIZE} posts')
+    # print progress
+    print(f'Done {(iterations * BATCH_SIZE) + len(data)} posts')
+    iterations += 1    
 
     # load next batch of rows
     rows = cur.fetchmany(BATCH_SIZE)
 
-Connection.commit()
+    # commit after each iteration
+    Connection.commit()
 
 # close connection after everything is done
 cur.close()
