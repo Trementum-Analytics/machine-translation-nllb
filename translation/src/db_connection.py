@@ -33,7 +33,10 @@ class DbConnection():
     # close connection in the end
     def close_connection(self):
         self.conn.close()
-        
+    
+    # takes update statement and updates data in the database, without commit
     def updated_in_batches(self, update_statement, data):
         cur_update = self.conn.cursor()
         extras.execute_batch(cur_update, update_statement, data)
+
+    

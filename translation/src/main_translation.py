@@ -1,12 +1,17 @@
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from transformers.pipelines.pt_utils import KeyDataset
 from datasets import Dataset
 from text_preprocessing import clean_text
-from torch import cuda
+from translator import Translator
 from db_connection import DbConnection
+from dotenv import load_dotenv
+import more_itertools
+import os
+import time
 import re
 
+load_dotenv()
 BATCH_SIZE = 1024
+SCHEMA_NAME = os.getenv('SCHEMA_NAME')
 
 # start database connection
 try:
@@ -18,13 +23,26 @@ try:
 except Exception as error:
     print('Connection error: ', error)
 
+# initilalize the model
+try:
+    src_lang = 'spa_Latn'
+    tgt_lang = 'eng_Latn'
+    max_length = 400
+
+    NllbTranslator = Translator(src_lang=src_lang, tgt_lang=tgt_lang)
+except Exception as error:
+    print('Model is not initialized: ', error)
+    exit(2)
+
 # load data for translation
-query = '''
-    SELECT _id, text_original
-    FROM test_all_platforms.posts
-    WHERE text_original IS NOT NULL
-    AND lang = 'es'
-    LIMIT 1
+query = f'''
+    SELECT es._id, p.text_original
+    FROM {SCHEMA_NAME}.openai_moderation_es_translated es
+    JOIN {SCHEMA_NAME}.posts p
+        ON es._id = p._id
+    WHERE p.text_original IS NOT NULL
+        AND es.text_eng IS NULL
+    ORDER BY LENGTH(p.text_original)
 '''
 
 # create cursor for getting data from the database
@@ -33,28 +51,6 @@ cur.execute(query)
 
 # load first batch of rows - if nothing, it just goes to the end of script
 rows = cur.fetchmany(BATCH_SIZE)
-
-device = 0 if cuda.is_available() else -1
-
-TASK = "translation"
-CKPT = "facebook/nllb-200-distilled-600M"
-
-model = AutoModelForSeq2SeqLM.from_pretrained(CKPT)
-tokenizer = AutoTokenizer.from_pretrained(CKPT)
-
-src_lang = 'spa_Latn'
-tgt_lang = 'eng_Latn'
-max_length = 400
-
-translation_pipeline = pipeline(TASK,
-                                model=model,
-                                tokenizer=tokenizer,
-                                src_lang=src_lang,
-                                tgt_lang=tgt_lang,
-                                max_length=max_length,
-                                device=device)
-
-print('Pipeline initiated')
 
 # Create a regular expression pattern with the values as separators
 delimiters = ['? ', '! ', '. ']
@@ -65,10 +61,13 @@ while rows:
     merged_result = []
     ids = []
     output = []
+    charachters_to_translate = 0
+    start_time = time.time()
     
     # loop on this batch, create dataset from dict with text and ids, prepare for translation
     for row in rows:
         text = clean_text(row[1])
+        charachters_to_translate += len(text)
 
         # Split the sentence using the pattern and keep the separators
         result = re.split(f'({pattern})', text)
@@ -84,11 +83,13 @@ while rows:
     dict_input = {'texts': merged_result,
                   'ids': ids}
     
-    dataset = Dataset.from_dict(dict_input)
-    for out in translation_pipeline(KeyDataset(dataset, "texts"), batch_size=1, truncation="only_first"):
-        output.append(out[0]['translation_text'])
-    print('Text translated')
-        
+    small_batch = 32
+
+    # dataset = Dataset.from_dict(dict_input) no need for now
+    for chunk in more_itertools.chunked(dict_input['texts'], small_batch):
+        translated_array = NllbTranslator.translate_batch(chunk, max_length=max_length)
+        output.append(translated_array)
+
     dict_output = {'texts': output,
                    'ids': ids}
     
@@ -107,9 +108,8 @@ while rows:
     # prepare dict for database input
     dict_output = [dict(zip(short_dict, t)) for t in zip(*short_dict.values())]
     
-    update_statement = '''
-        UPDATE test_all_platforms.posts
-        SET eng_translation = %(text)s
+    update_statement = f'UPDATE {SCHEMA_NAME}.openai_moderation_es_translated' + '''
+        SET text_eng = %(text)s
         WHERE _id = %(id)s'''
     
     Connection.updated_in_batches(update_statement, dict_output)
@@ -119,3 +119,7 @@ while rows:
     
     # next batch
     rows = cur.fetchmany(BATCH_SIZE)
+
+# close connection after everything is done
+cur.close()
+Connection.close_connection()
