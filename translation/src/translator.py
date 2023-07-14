@@ -1,9 +1,7 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from torch import cuda
 
-TASK = "translation"
-# choices from small to large: nllb-200-distilled-600M, nllb-200-distilled-1.3B, nllb-200-1.3B, nllb-200-3.3B (usual 1.3B is optimal)
-
+# choices of models from small to large (nllb): nllb-200-distilled-600M, nllb-200-distilled-1.3B, nllb-200-1.3B, nllb-200-3.3B (usual 1.3B is optimal)
 class Translator():
     def __init__(self, src_lang, tgt_lang , model_name="facebook/nllb-200-distilled-600M") -> None:
         self.src_lang = src_lang
@@ -12,7 +10,7 @@ class Translator():
         self.device = 0 if cuda.is_available() else -1
 
         # initialize the model
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name).to(self.device)
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, src_lang=src_lang)
         print('Model is ready')
 
@@ -24,3 +22,12 @@ class Translator():
         )
 
         return self.tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)
+
+    def create_pipeline(self, src_lang, tgt_lang, max_length):
+        self.translation_pipeline = pipeline("translation",
+                                model=self.model,
+                                tokenizer=self.tokenizer,
+                                src_lang=src_lang,
+                                tgt_lang=tgt_lang,
+                                max_length=max_length,
+                                device=self.device)
