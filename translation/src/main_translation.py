@@ -8,6 +8,7 @@ import more_itertools
 import os
 import time
 import re
+from tqdm import tqdm
 
 load_dotenv()
 BATCH_SIZE = 1024
@@ -56,6 +57,11 @@ rows = cur.fetchmany(BATCH_SIZE)
 delimiters = ['? ', '! ', '. ']
 pattern = '|'.join(map(re.escape, delimiters))
 
+# try data stream
+def data(dataset):
+    for row in dataset:
+        yield row["texts"]
+
 while rows:
     
     merged_result = []
@@ -85,10 +91,14 @@ while rows:
     
     small_batch = 32
 
-    # dataset = Dataset.from_dict(dict_input) no need for now
-    for chunk in more_itertools.chunked(dict_input['texts'], small_batch):
-        translated_array = NllbTranslator.translate_batch(chunk, max_length=max_length)
-        output = output + translated_array
+    dataset = Dataset.from_dict(dict_input)
+    for out in tqdm(NllbTranslator.translation_pipeline(KeyDataset(dataset, "texts"), batch_size=small_batch, truncation="only_first"), total=len(merged_result)):
+        output.append(out[0]['translation_text'])
+
+    # # dataset = Dataset.from_dict(dict_input) no need for now
+    # for chunk in more_itertools.chunked(dict_input['texts'], small_batch):
+    #     translated_array = NllbTranslator.translate_batch(chunk, max_length=max_length)
+    #     output = output + translated_array
 
     dict_output = {'texts': output,
                    'ids': ids}
