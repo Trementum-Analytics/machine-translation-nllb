@@ -88,7 +88,7 @@ while rows:
     # dataset = Dataset.from_dict(dict_input) no need for now
     for chunk in more_itertools.chunked(dict_input['texts'], small_batch):
         translated_array = NllbTranslator.translate_batch(chunk, max_length=max_length)
-        output.append(translated_array)
+        output = output + translated_array
 
     dict_output = {'texts': output,
                    'ids': ids}
