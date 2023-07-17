@@ -24,10 +24,12 @@ except Exception as error:
     print('Connection error: ', error)
     exit(1)
     
+# query is used on special table for openai moderation, where translation to english is already prepared    
 query = f'''
-    SELECT _id, text_original
+    SELECT _id, text_eng
     FROM {DB_SCHEMA}.{DB_TABLE}
-    WHERE text_original IS NOT NULL
+    WHERE text_eng IS NOT NULL
+        AND flagged IS NULL
 '''
 
 # create cursor for getting data from the database

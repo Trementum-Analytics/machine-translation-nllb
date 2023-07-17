@@ -1,14 +1,10 @@
 FROM python:3.9
 
+COPY src/. /usr/app/src/
+COPY requirements.txt /usr/app/
+COPY content/. /usr/app/content/
+
 WORKDIR /usr/app
-
-# Install git
-RUN apt-get update && apt-get install -y git
-
-# Clone the repository from GitHub
-RUN git clone https://github.com/Trementum-Analytics/machine-translation-nllb.git .
-
-COPY content/. ./content/
 
 RUN pip install -r requirements.txt
 
