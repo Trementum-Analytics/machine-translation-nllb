@@ -12,7 +12,6 @@ from tqdm import tqdm
 
 load_dotenv()
 BATCH_SIZE = 1024
-SCHEMA_NAME = os.getenv('SCHEMA_NAME')
 
 # start database connection
 try:
@@ -35,29 +34,16 @@ except Exception as error:
     print('Model is not initialized: ', error)
     exit(2)
 
-# load data for translation
-query = f'''
-    SELECT es._id, p.text_original
-    FROM {SCHEMA_NAME}.openai_moderation_es_translated es
-    JOIN {SCHEMA_NAME}.posts p
-        ON es._id = p._id
-    WHERE p.text_original IS NOT NULL
-        AND es.text_eng IS NULL
-    ORDER BY LENGTH(p.text_original)
-'''
-
-# create cursor for getting data from the database
-cur = Connection.conn.cursor()
-cur.execute(query)
-
-# load first batch of rows - if nothing, it just goes to the end of script
-rows = cur.fetchmany(BATCH_SIZE)
+# perform select to table
+Connection.execute_select()
+# get rows from select statement
+rows = Connection.fetch_rows(BATCH_SIZE=BATCH_SIZE)
 
 # Create a regular expression pattern with the values as separators
 delimiters = ['? ', '! ', '. ']
 pattern = '|'.join(map(re.escape, delimiters))
 
-# try data stream
+# data stream from huggingface dataset
 def data(dataset):
     for row in dataset:
         yield row["texts"]
@@ -118,18 +104,13 @@ while rows:
     # prepare dict for database input
     dict_output = [dict(zip(short_dict, t)) for t in zip(*short_dict.values())]
     
-    update_statement = f'UPDATE {SCHEMA_NAME}.openai_moderation_es_translated' + '''
-        SET text_eng = %(text)s
-        WHERE _id = %(id)s'''
-    
-    Connection.updated_in_batches(update_statement, dict_output)
+    Connection.updated_in_batches(dict_output)
     Connection.commit()
     
     print('Uploaded')
     
     # next batch
-    rows = cur.fetchmany(BATCH_SIZE)
+    rows = Connection.fetch_rows(BATCH_SIZE=BATCH_SIZE)
 
 # close connection after everything is done
-cur.close()
 Connection.close_connection()
