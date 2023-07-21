@@ -7,6 +7,7 @@ import re
 from tqdm import tqdm
 
 BATCH_SIZE = 1024
+STRATEGY = 'comment'
 
 # start database connection
 try:
@@ -30,7 +31,7 @@ except Exception as error:
     exit(2)
 
 # perform select to table
-Connection.execute_select()
+Connection.execute_select(strategy=STRATEGY)
 # get rows from select statement
 rows = Connection.fetch_rows(BATCH_SIZE=BATCH_SIZE)
 
@@ -93,11 +94,11 @@ while rows:
     # prepare dict for database input
     dict_output = [dict(zip(short_dict, t)) for t in zip(*short_dict.values())]
     
-    Connection.updated_in_batches(dict_output)
+    Connection.updated_in_batches(data=dict_output,
+                                  model_name=MTranslator.model_name,
+                                  strategy=STRATEGY)
     Connection.commit()
-    
-    print('Uploaded')
-    
+        
     # next batch
     rows = Connection.fetch_rows(BATCH_SIZE=BATCH_SIZE)
 

@@ -36,32 +36,35 @@ class DbConnection():
         self.conn.close()
     
     # takes update statement and updates data in the database, without commit
-    def updated_in_batches(self, data):
+    def updated_in_batches(self, data, model_name, strategy):
         # define statement
         update_statement = f'UPDATE {self.SCHEMA_NAME}.openai_moderation_es_translated' + '''
-        SET text_eng = %(text)s
-        WHERE _id = %(id)s
-            AND type = 'post'
-        '''
+        SET text_eng = %(text)s,''' + f''' model_translation = '{model_name}' '''
+        + 'WHERE _id = %(id)s' + f'''AND type = '{strategy}' '''
+
         
         # cursor for update
         cur_update = self.conn.cursor()
         extras.execute_batch(cur_update, update_statement, data)
 
     # just change select statement here if needed
-    def execute_select (self):
+    def execute_select (self, strategy):
         # define schema name
         self.SCHEMA_NAME = os.getenv('SCHEMA_NAME')
         
+        if strategy == 'post':
+            text_column = 'text_original'
+        elif strategy == 'comment':
+            text_column = 'text'
         # load data for translation
         query = f'''
-            SELECT es._id, p.text_original
+            SELECT es._id, t.{text_column}
             FROM {self.SCHEMA_NAME}.openai_moderation_es_translated es
-            JOIN {self.SCHEMA_NAME}.posts p
-                ON es._id = p._id
-            WHERE p.text_original IS NOT NULL
+            JOIN {self.SCHEMA_NAME}.{strategy}s t
+                ON es._id = t._id
+            WHERE t.{text_column} IS NOT NULL
                 AND es.text_eng IS NULL
-                AND es.type = 'post'
+                AND es.type = '{strategy}'
         '''
         
         # create cursor for getting data from the database
