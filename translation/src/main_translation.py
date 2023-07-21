@@ -3,14 +3,9 @@ from datasets import Dataset
 from text_preprocessing import clean_text
 from translator import Translator
 from db_connection import DbConnection
-from dotenv import load_dotenv
-import more_itertools
-import os
-import time
 import re
 from tqdm import tqdm
 
-load_dotenv()
 BATCH_SIZE = 1024
 
 # start database connection
@@ -29,7 +24,7 @@ try:
     tgt_lang = 'eng_Latn'
     max_length = 400
 
-    NllbTranslator = Translator(src_lang=src_lang, tgt_lang=tgt_lang)
+    MTranslator = Translator(src_lang=src_lang, tgt_lang=tgt_lang)
 except Exception as error:
     print('Model is not initialized: ', error)
     exit(2)
@@ -54,7 +49,6 @@ while rows:
     ids = []
     output = []
     charachters_to_translate = 0
-    start_time = time.time()
     
     # loop on this batch, create dataset from dict with text and ids, prepare for translation
     for row in rows:
@@ -78,13 +72,8 @@ while rows:
     small_batch = 32
 
     dataset = Dataset.from_dict(dict_input)
-    for out in tqdm(NllbTranslator.translation_pipeline(KeyDataset(dataset, "texts"), batch_size=small_batch, truncation="only_first"), total=len(merged_result)):
+    for out in tqdm(MTranslator.opus_pipe(KeyDataset(dataset, "texts"), batch_size=small_batch, truncation="only_first"), total=len(merged_result)):
         output.append(out[0]['translation_text'])
-
-    # # dataset = Dataset.from_dict(dict_input) no need for now
-    # for chunk in more_itertools.chunked(dict_input['texts'], small_batch):
-    #     translated_array = NllbTranslator.translate_batch(chunk, max_length=max_length)
-    #     output = output + translated_array
 
     dict_output = {'texts': output,
                    'ids': ids}
